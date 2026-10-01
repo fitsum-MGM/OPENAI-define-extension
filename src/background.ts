@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ term: message.term, sentence: message.sentence }),
+    body: JSON.stringify(message),
   })
     .then(async (res) => {
       if (!res.ok) throw new Error(`Server returned ${res.status}`);

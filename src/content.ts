@@ -126,6 +126,7 @@ function showButton() {
     return;
   }
   sentence = getSentence(range, term);
+  extra = getExtraContext(range);
   const rect = range.getBoundingClientRect();
   anchor = { left: rect.left, bottom: rect.bottom };
   button.hidden = false;
@@ -167,7 +168,7 @@ let requestId = 0;
 
 function lookUp(word: string, context: string) {
   const id = ++requestId;
-  chrome.runtime.sendMessage({ type: "define", term: word, sentence: context }, (reply) => {
+  chrome.runtime.sendMessage({ type: "define", term: word, sentence: context, ...extra }, (reply) => {
     if (id !== requestId) return; // a newer lookup replaced this one
     if (chrome.runtime.lastError || !reply?.ok) {
       bodyEl.textContent = "Couldn't get a definition. Is the local server running?";
@@ -175,4 +176,33 @@ function lookUp(word: string, context: string) {
     }
     bodyEl.textContent = reply.definition;
   });
+}
+
+type Extra = { paragraph: string; heading: string; topic: string };
+let extra: Extra = { paragraph: "", heading: "", topic: "" };
+
+function getExtraContext(range: Range): Extra {
+  const node = range.commonAncestorContainer;
+  const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+
+  // The paragraph or list item around the selection
+  const block = el?.closest("p, li, td, blockquote") ?? el;
+  const paragraph = (block?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 600);
+
+  // The nearest heading above the selection, inside the same message
+  const message =
+    el?.closest("[data-message-author-role]") ?? el?.closest("article") ?? document.body;
+  let heading = "";
+  for (const h of Array.from(message.querySelectorAll("h1, h2, h3, h4"))) {
+    if (el && h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      heading = (h.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+    }
+  }
+
+  // What the conversation is about: the first message the user sent
+  const firstUser = document.querySelector('[data-message-author-role="user"]');
+  const topic = (firstUser?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+
+  console.log("[Define] extra context:", { paragraph, heading, topic });
+  return { paragraph, heading, topic };
 }
