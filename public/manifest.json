@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Define for ChatGPT",
+  "version": "0.2.0",
+  "description": "Adds a Define button when you highlight text on ChatGPT.",
+  "browser_specific_settings": {
+    "gecko": { "id": "define-extension@fitsum.dev" }
+  },
+  "host_permissions": ["https://chatgpt.com/*", "http://127.0.0.1:8000/*"],
+  "background": { "scripts": ["background.js"] },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
