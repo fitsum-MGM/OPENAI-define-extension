@@ -211,6 +211,7 @@ function setState(state: "loading" | "done" | "error", text = "") {
   bodyEl.className = state === "error" ? "body error" : "body";
   bodyEl.textContent = text;
   retryBtn.hidden = state !== "error";
+  onStateChange(state);
 }
 
 function lookUp() {
@@ -284,3 +285,76 @@ button.addEventListener("click", () => {
 
 closeBtn.addEventListener("click", hideAll);
 retryBtn.addEventListener("click", lookUp);
+
+// ---------- Save to glossary ----------
+type Entry = { term: string; definition: string; sentence: string; savedAt: number };
+
+const glossaryStyle = document.createElement("style");
+glossaryStyle.textContent = `
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .save {
+    font: 13px system-ui, sans-serif; color: #fff; background: #3b3b3b;
+    border: 1px solid #555; border-radius: 8px; padding: 4px 10px; cursor: pointer;
+  }
+  .save:disabled { opacity: 0.65; cursor: default; }
+  .view {
+    font: 13px system-ui, sans-serif; color: #9a9a9a; background: none;
+    border: none; text-decoration: underline; cursor: pointer; padding: 4px 2px;
+  }
+  .view:hover { color: #fff; }
+`;
+shadow.appendChild(glossaryStyle);
+
+const actions = document.createElement("div");
+actions.className = "actions";
+actions.hidden = true;
+
+const saveBtn = document.createElement("button");
+saveBtn.type = "button";
+saveBtn.className = "save";
+saveBtn.textContent = "Save to glossary";
+
+const viewBtn = document.createElement("button");
+viewBtn.type = "button";
+viewBtn.className = "view";
+viewBtn.textContent = "View glossary";
+
+actions.append(saveBtn, viewBtn);
+card.insertBefore(actions, contextEl);
+
+for (const b of [saveBtn, viewBtn]) {
+  b.addEventListener("mousedown", (e) => e.preventDefault());
+}
+
+function getGlossary(cb: (list: Entry[]) => void) {
+  chrome.storage.local.get("glossary", (data) => cb((data?.glossary as Entry[]) ?? []));
+}
+
+function onStateChange(state: "loading" | "done" | "error") {
+  actions.hidden = state !== "done";
+  if (state !== "done") return;
+  saveBtn.textContent = "Save to glossary";
+  saveBtn.disabled = false;
+  getGlossary((list) => {
+    if (list.some((e) => e.term.toLowerCase() === term.toLowerCase())) {
+      saveBtn.textContent = "Saved ✓";
+      saveBtn.disabled = true;
+    }
+  });
+}
+
+saveBtn.addEventListener("click", () => {
+  const definition = bodyEl.textContent ?? "";
+  getGlossary((list) => {
+    const rest = list.filter((e) => e.term.toLowerCase() !== term.toLowerCase());
+    rest.unshift({ term, definition, sentence, savedAt: Date.now() });
+    chrome.storage.local.set({ glossary: rest }, () => {
+      saveBtn.textContent = "Saved ✓";
+      saveBtn.disabled = true;
+    });
+  });
+});
+
+viewBtn.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ type: "open-glossary" });
+});

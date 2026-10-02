@@ -1,6 +1,10 @@
 const API_URL = "http://127.0.0.1:8000/define";
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "open-glossary") {
+    openGlossary(sender.tab?.id);
+    return;
+  }
   if (message?.type !== "define") return;
 
   fetch(API_URL, {
@@ -17,3 +21,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return true; // keeps the channel open for the async reply
 });
+
+function openGlossary(fromTabId?: number) {
+  const base = chrome.runtime.getURL("glossary.html");
+  const url = fromTabId === undefined ? base : `${base}?from=${fromTabId}`;
+  chrome.tabs.create({ url });
+}
+
+chrome.action.onClicked.addListener((tab) => openGlossary(tab.id));
